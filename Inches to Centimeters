@@ -1,0 +1,8 @@
+# Read height in inches
+height_in_inches = int(input())
+
+# Convert to centimeters
+height_in_cm = height_in_inches * 2.54
+
+# Print result with 2 decimal places
+print(f"{height_in_cm:.2f}")
