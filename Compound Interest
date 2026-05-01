@@ -1,0 +1,8 @@
+P = int(input())
+R = int(input())
+T = int(input())
+
+A = P * (1 + R/100) ** T
+CI = A - P
+
+print(f"{CI:.2f}")
