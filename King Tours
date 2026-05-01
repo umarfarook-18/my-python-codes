@@ -1,0 +1,3 @@
+N,M  =   map(int, input().split())
+total_people = N*5 + M*7
+print(total_people)
