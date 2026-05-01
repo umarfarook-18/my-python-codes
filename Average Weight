@@ -1,0 +1,5 @@
+X, W1, W2 = map(int, input().split())
+
+W3 = 3 * X - (W1 + W2)
+
+print(W3)
