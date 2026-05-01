@@ -1,0 +1,9 @@
+# Read side of square
+side = int(input())
+
+# Calculate area and perimeter
+area = side * side
+perimeter = 4 * side
+
+# Print results
+print(area, perimeter)
