@@ -1,0 +1,3 @@
+cp,sp=map(int,input().split())
+loss_percentage=((cp-sp)/cp)*100
+print(f"{loss_percentage:.2f}")

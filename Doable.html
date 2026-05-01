@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Air Draw Fire + Eraser</title>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      overflow: hidden;
+      background: black;
+      font-family: Arial, sans-serif;
+    }
+
+    #video {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      transform: scaleX(-1);
+      z-index: 1;
+      opacity: 0.9;
+    }
+
+    #canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    #ui {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 3;
+      color: white;
+      background: rgba(0,0,0,0.5);
+      padding: 14px 16px;
+      border-radius: 12px;
+      max-width: 340px;
+    }
+
+    #startBtn {
+      margin-top: 10px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    #status {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #ffd166;
+    }
+  </style>
+</head>
+<body>
+
+  <video id="video" playsinline autoplay muted></video>
+  <canvas id="canvas"></canvas>
+
+  <div id="ui">
+    <div><b>Air Draw Fire + Eraser</b></div>
+    <div style="margin-top:8px;">☝ One finger = draw fire</div>
+    <div>✊ Fist = erase</div>
+    <div id="status">Click Start Camera</div>
+    <button id="startBtn">Start Camera</button>
+  </div>
+
+  <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const startBtn = document.getElementById("startBtn");
+    const statusEl = document.getElementById("status");
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
+    let lastX = null;
+    let lastY = null;
+    let isErasing = false;
+    let particles = [];
+    let started = false;
+
+    function createFire(x, y) {
+      for (let i = 0; i < 6; i++) {
+        particles.push({
+          x: x + (Math.random() - 0.5) * 8,
+          y: y + (Math.random() - 0.5) * 8,
+          size: Math.random() * 8 + 3,
+          alpha: 1,
+          dx: (Math.random() - 0.5) * 2,
+          dy: -(Math.random() * 2 + 0.5)
+        });
+      }
+    }
+
+    function drawParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        const green = Math.floor(80 + Math.random() * 120);
+        ctx.fillStyle = `rgba(255, ${green}, 0, ${p.alpha})`;
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = "orange";
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        p.x += p.dx;
+        p.y += p.dy;
+        p.alpha -= 0.03;
+        p.size *= 0.985;
+
+        if (p.alpha <= 0 || p.size < 0.5) {
+          particles.splice(i, 1);
+        }
+      }
+    }
+
+    function drawLine(x, y) {
+      if (lastX === null || lastY === null) {
+        lastX = x;
+        lastY = y;
+        return;
+      }
+
+      if (isErasing) {
+        ctx.save();
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.lineWidth = 35;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.stroke();
+        ctx.restore();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = "orange";
+        ctx.lineWidth = 7;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = "red";
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        createFire(x, y);
+      }
+
+      lastX = x;
+      lastY = y;
+    }
+
+    function resetStroke() {
+      lastX = null;
+      lastY = null;
+    }
+
+    function animate() {
+      drawParticles();
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    const hands = new Hands({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.5
+    });
+
+    hands.onResults((results) => {
+      if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+        statusEl.textContent = "No hand detected";
+        resetStroke();
+        return;
+      }
+
+      const lm = results.multiHandLandmarks[0];
+
+      const indexTip = lm[8];
+      const indexMcp = lm[5];
+
+      const middleTip = lm[12];
+      const middleMcp = lm[9];
+
+      const ringTip = lm[16];
+      const ringMcp = lm[13];
+
+      const pinkyTip = lm[20];
+      const pinkyMcp = lm[17];
+
+      const indexExtended = indexTip.y < indexMcp.y - 0.04;
+      const middleExtended = middleTip.y < middleMcp.y - 0.04;
+      const ringExtended = ringTip.y < ringMcp.y - 0.04;
+      const pinkyExtended = pinkyTip.y < pinkyMcp.y - 0.04;
+
+      const isFist = !indexExtended && !middleExtended && !ringExtended && !pinkyExtended;
+      const shouldDraw = indexExtended && !middleExtended;
+
+      isErasing = isFist;
+
+      const x = (1 - indexTip.x) * canvas.width;
+      const y = indexTip.y * canvas.height;
+
+      if (isFist) {
+        statusEl.textContent = "Erasing";
+        drawLine(x, y);
+      } else if (shouldDraw) {
+        statusEl.textContent = "Drawing fire";
+        drawLine(x, y);
+      } else {
+        statusEl.textContent = "Show one finger to draw";
+        resetStroke();
+      }
+    });
+
+    let camera;
+
+    startBtn.addEventListener("click", async () => {
+      if (started) return;
+      started = true;
+
+      try {
+        statusEl.textContent = "Requesting camera permission...";
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+
+        video.srcObject = stream;
+        await video.play();
+
+        camera = new Camera(video, {
+          onFrame: async () => {
+            await hands.send({ image: video });
+          },
+          width: 1280,
+          height: 720
+        });
+
+        camera.start();
+        statusEl.textContent = "Camera started";
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Camera error: allow permission and use Chrome";
+      }
+    });
+  </script>
+</body>
+</html>

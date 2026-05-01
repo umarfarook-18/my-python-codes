@@ -1,0 +1,15 @@
+s = input().strip().lower()
+
+words = s.split()
+vowels = "aeiou"
+
+vowel_counts = []
+
+for word in words:
+    count = 0
+    for ch in word:
+        if ch in vowels:
+            count += 1
+    vowel_counts.append(count)
+
+print(min(vowel_counts))
