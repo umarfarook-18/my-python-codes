@@ -1,0 +1,11 @@
+# Input
+total_seconds = int(input())
+
+# Conversion
+hours = total_seconds // 3600
+remaining = total_seconds % 3600
+minutes = remaining // 60
+seconds = remaining % 60
+
+# Output
+print(f"H:M:S-{hours}:{minutes}:{seconds}")
